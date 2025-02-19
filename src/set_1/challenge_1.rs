@@ -18,6 +18,14 @@ pub fn hex_to_bytes(input: &str) -> Vec<u8> {
         .collect()
 }
 
+pub fn bytes_to_hex(input: &[u8]) -> String {
+    let mut out = String::new();
+    for byte in input {
+        out.push_str(&format!("{:02x}", byte));
+    }
+    out
+}
+
 pub fn bytes_to_base64(input: &[u8]) -> String {
     let mut out = String::new();
 
