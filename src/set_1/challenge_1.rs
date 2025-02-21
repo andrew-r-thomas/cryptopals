@@ -1,4 +1,4 @@
-const BASE64_CHARS: &'static [u8] =
+pub const BASE64_CHARS: &'static [u8] =
     b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 pub fn hex_to_base64(input: &str) -> String {
