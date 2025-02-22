@@ -2,12 +2,8 @@ use crate::set_1::challenge_1::BASE64_CHARS;
 use std::{
     cmp::Reverse,
     collections::{BinaryHeap, HashMap},
-    fs,
     ops::Range,
-    path::Path,
 };
-
-use super::challenge_3::find_xorchar_cipher;
 
 /// assumes a and b have the same length
 pub fn hamming_dist(a: &[u8], b: &[u8]) -> usize {
@@ -75,8 +71,8 @@ pub fn break_repeating_xor(input: &[u8], key_range: Range<usize>) -> Vec<u8> {
     // find the cipher for each block
     let mut out = Vec::with_capacity(best_key_size);
     for block in blocks {
-        let (_, cipher) = find_xorchar_cipher(&block);
-        out.push(cipher);
+        // let (_, cipher) = find_xorchar_cipher(&block);
+        // out.push(cipher);
     }
 
     out
@@ -84,8 +80,6 @@ pub fn break_repeating_xor(input: &[u8], key_range: Range<usize>) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
-    use crate::set_1::challenge_1::bytes_to_base64;
-
     use super::*;
 
     #[test]
