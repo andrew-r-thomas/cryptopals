@@ -22,4 +22,13 @@ mod tests {
         let out = bytes_to_hex(&repeating_key_xor(message.as_bytes(), key.as_bytes()));
         assert_eq!(expected, out);
     }
+
+    #[test]
+    fn reversable() {
+        let message = "this is a test, idk man";
+        let key = "test";
+        let encrypted = repeating_key_xor(message.as_bytes(), key.as_bytes());
+        let decrypted = repeating_key_xor(&encrypted, key.as_bytes());
+        assert_eq!(message, String::from_utf8(decrypted).unwrap());
+    }
 }

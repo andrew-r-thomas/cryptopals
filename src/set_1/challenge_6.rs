@@ -5,6 +5,8 @@ use std::{
     ops::Range,
 };
 
+use super::challenge_3::find_xorchar_cipher;
+
 /// assumes a and b have the same length
 pub fn hamming_dist(a: &[u8], b: &[u8]) -> usize {
     let mut out = 0;
@@ -30,11 +32,66 @@ pub fn base64_map() -> HashMap<char, u8> {
     map
 }
 
-/// TODO:
-pub fn base64_to_bytes(input: &str) -> Vec<u8> {
-    let mut out = Vec::new();
-    let map = base64_map();
-    out
+fn decode_base64(input: &str) -> Result<Vec<u8>, &'static str> {
+    // Base64 alphabet lookup table
+    const DECODE_TABLE: [i8; 256] = {
+        let mut table = [-1i8; 256];
+        let alphabet = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+        let mut i = 0;
+        while i < 64 {
+            table[alphabet[i] as usize] = i as i8;
+            i += 1;
+        }
+        table['=' as usize] = -2; // Padding character
+        table
+    };
+
+    // Calculate the length of the output buffer
+    // Every 4 base64 characters become 3 bytes (except for padding)
+    let input_length = input.len();
+    if input_length % 4 != 0 {
+        return Err("Invalid base64 length");
+    }
+
+    let padding_count = input.chars().rev().take(2).filter(|&c| c == '=').count();
+    let output_length = input_length / 4 * 3 - padding_count;
+    let mut output = Vec::with_capacity(output_length);
+
+    // Process input in groups of 4 characters
+    let input_bytes = input.as_bytes();
+    let mut i = 0;
+    while i < input_length {
+        // Convert each character to its 6-bit value using the lookup table
+        let b1 = DECODE_TABLE[input_bytes[i] as usize];
+        let b2 = DECODE_TABLE[input_bytes[i + 1] as usize];
+        let b3 = DECODE_TABLE[input_bytes[i + 2] as usize];
+        let b4 = DECODE_TABLE[input_bytes[i + 3] as usize];
+
+        // Check for invalid characters
+        if b1 < 0 || b2 < 0 || (b3 < -2) || (b4 < -2) {
+            return Err("Invalid base64 character");
+        }
+
+        // Combine the 6-bit values into bytes
+        let triple = ((b1 as u32) << 18)
+            | ((b2 as u32) << 12)
+            | (((if b3 >= 0 { b3 } else { 0 }) as u32) << 6)
+            | ((if b4 >= 0 { b4 } else { 0 }) as u32);
+
+        // Add the decoded bytes to the output
+        output.push(((triple >> 16) & 0xFF) as u8);
+        if b3 >= 0 {
+            output.push(((triple >> 8) & 0xFF) as u8);
+        }
+        if b4 >= 0 {
+            output.push((triple & 0xFF) as u8);
+        }
+
+        i += 4;
+    }
+
+    Ok(output)
 }
 
 #[derive(PartialEq, Eq, Ord)]
@@ -71,8 +128,8 @@ pub fn break_repeating_xor(input: &[u8], key_range: Range<usize>) -> Vec<u8> {
     // find the cipher for each block
     let mut out = Vec::with_capacity(best_key_size);
     for block in blocks {
-        // let (_, cipher) = find_xorchar_cipher(&block);
-        // out.push(cipher);
+        let cipher = find_xorchar_cipher::<1>(&block);
+        out.push(cipher[0].1);
     }
 
     out
@@ -80,6 +137,13 @@ pub fn break_repeating_xor(input: &[u8], key_range: Range<usize>) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
+    use std::{
+        fs::{self, File},
+        io::{BufRead, BufReader},
+    };
+
+    use crate::set_1::{challenge_1::bytes_to_base64, challenge_5::repeating_key_xor};
+
     use super::*;
 
     #[test]
@@ -91,15 +155,31 @@ mod tests {
         assert_eq!(expected, out);
     }
 
-    // #[test]
-    // fn base64_decode() {
-    //     let input = "SGVsbG8sIFdvcmxkIQ==";
-    //     let out = bytes_to_base64(&base64_to_bytes(input));
-    //     assert_eq!(out, "Hello, World!");
-    // }
+    #[test]
+    fn base64_decode() {
+        let input = "SGVsbG8sIFdvcmxkIQ==";
+        let out = String::from_utf8(decode_base64(input).unwrap()).unwrap();
+        assert_eq!(out, "Hello, World!");
+    }
 
     #[test]
     fn challenge_6() {
-        // break_repeating_xor(&Path::new("some/path"), 2..40);
+        let f = File::open("data/challenge_6.txt").unwrap();
+        let reader = BufReader::new(f).lines();
+        let mut input = Vec::new();
+        for line in reader.map_while(Result::ok) {
+            input.append(&mut decode_base64(&line).unwrap());
+        }
+        let key = break_repeating_xor(&input, 2..40);
+        println!(
+            "key: {}",
+            String::from_utf8(key.clone()).unwrap_or("not utf8".into())
+        );
+
+        let decrypted = repeating_key_xor(&input, &key);
+        println!(
+            "decrypted: {}",
+            String::from_utf8(decrypted).unwrap_or("not utf8".into())
+        );
     }
 }
